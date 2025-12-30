@@ -118,8 +118,12 @@ class FeatureExtractor:
         # with Timer("feature_extractor - compute_features"):
         dense_feat = self.compute_features(img, seg, center, **kwargs)
 
+        if not kwargs.get("sparsify_features", True):
+            return edges, None, seg, center, dense_feat
+
         # with Timer("feature_extractor - compute_features"):
         # Sparsify features to match the centers if required
+        # TODO: sparsify features does not yet support batch
         feat = self.sparsify_features(dense_feat, seg)
 
         if kwargs.get("return_dense_features", False):
@@ -160,6 +164,8 @@ class FeatureExtractor:
 
         elif self._segmentation_type == "stego":
             seg = self.segment_stego(img, **kwargs)
+            edges, centers = None, None
+            return edges, seg, centers
 
         elif self._segmentation_type == "random":
             seg = self.segment_random(img, **kwargs)
@@ -168,13 +174,13 @@ class FeatureExtractor:
             raise f"segmentation_type [{self._segmentation_type}] not supported"
 
         # Compute edges and centers
-        if self._segmentation_type != "none" and self._segmentation_type is not None:
+        if self._segmentation_type is not None and self._segmentation_type != "none":
             # Extract adjacency_list based on segments
-            edges = self.segment_extractor.adjacency_list(seg)
+            edges = self.segment_extractor.adjacency_list(seg).T
             # Extract centers
             centers = self.segment_extractor.centers(seg)
 
-        return edges.T, seg[0, 0], centers
+        return edges, seg[0, 0], centers
 
     def segment_pixelwise(self, img, **kwargs):
         # Generate pixel-wise segmentation
@@ -396,3 +402,4 @@ class FeatureExtractor:
                     return torch.stack(sparse_features, dim=1).T
         else:
             return dense_features
+

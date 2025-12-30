@@ -105,8 +105,8 @@ class StegoInterface:
         new_features_size = (H, H)
         # pad = int((W - H) / 2)
         self._code = F.interpolate(self._code, new_features_size, mode="bilinear", align_corners=True)
-        self._cluster_pred = F.interpolate(self._cluster_pred[None].float(), new_features_size, mode="nearest").int()
-        self._linear_pred = F.interpolate(self._linear_pred[None].float(), new_features_size, mode="nearest").int()
+        self._cluster_pred = F.interpolate(self._cluster_pred[:, None, :, :].float(), new_features_size, mode="nearest").int()
+        self._linear_pred = F.interpolate(self._linear_pred[:, None, :, :].float(), new_features_size, mode="nearest").int()
 
         return self._linear_pred, self._cluster_pred
 
@@ -185,3 +185,4 @@ def run_stego_interfacer():
 
 if __name__ == "__main__":
     run_stego_interfacer()
+
