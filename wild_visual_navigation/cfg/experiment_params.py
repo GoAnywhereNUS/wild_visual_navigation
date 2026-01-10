@@ -12,7 +12,7 @@ from wild_visual_navigation.cfg import get_global_env_params, GlobalEnvironmentP
 
 @dataclass
 class ExperimentParams:
-    env: GlobalEnvironmentParams = get_global_env_params(os.environ.get("ENV_WORKSTATION_NAME", "default"))
+    env: GlobalEnvironmentParams = field(default_factory=lambda: get_global_env_params(os.environ.get("ENV_WORKSTATION_NAME", "default")))
 
     @dataclass
     class GeneralParams:
@@ -27,7 +27,7 @@ class ExperimentParams:
         log_confidence: bool = True
         use_threshold: bool = True
 
-    general: GeneralParams = GeneralParams()
+    general: GeneralParams = field(default_factory=GeneralParams)
 
     @dataclass
     class LoggerParams:
@@ -36,14 +36,14 @@ class ExperimentParams:
         wandb_project_name: str = "wild_visual_navigation"
         neptune_project_name: str = "ASL/WVN"
 
-    logger: LoggerParams = LoggerParams()
+    logger: LoggerParams = field(default_factory=LoggerParams)
 
     @dataclass
     class OptimizerParams:
         name: str = "ADAM"
         lr: float = 0.001
 
-    optimizer: OptimizerParams = OptimizerParams()
+    optimizer: OptimizerParams = field(default_factory=OptimizerParams)
 
     @dataclass
     class LossParams:
@@ -55,14 +55,14 @@ class ExperimentParams:
         confidence_std_factor: float = 0.5
         trav_cross_entropy: bool = False
 
-    loss: LossParams = LossParams()
+    loss: LossParams = field(default_factory=LossParams)
 
     @dataclass
     class LossAnomalyParams:
         method: str = "latest_measurement"
         confidence_std_factor: float = 0.5
 
-    loss_anomaly: LossAnomalyParams = LossAnomalyParams()
+    loss_anomaly: LossAnomalyParams = field(default_factory=LossAnomalyParams)
 
     @dataclass
     class TrainerParams:
@@ -84,7 +84,7 @@ class ExperimentParams:
         progress_bar_refresh_rate: Optional[int] = None
         gpus: int = -1
 
-    trainer: TrainerParams = TrainerParams()
+    trainer: TrainerParams = field(default_factory=TrainerParams)
 
     @dataclass
     class AblationDataModuleParams:
@@ -98,7 +98,7 @@ class ExperimentParams:
         training_data_percentage: int = 100
         training_in_memory: bool = True
 
-    ablation_data_module: AblationDataModuleParams = AblationDataModuleParams()
+    ablation_data_module: AblationDataModuleParams = field(default_factory=AblationDataModuleParams)
 
     @dataclass
     class ModelParams:
@@ -111,14 +111,14 @@ class ExperimentParams:
             hidden_sizes: List[int] = field(default_factory=lambda: [256, 32, 1])
             reconstruction: bool = True
 
-        simple_mlp_cfg: SimpleMlpCfgParams = SimpleMlpCfgParams()
+        simple_mlp_cfg: SimpleMlpCfgParams = field(default_factory=SimpleMlpCfgParams)
 
         @dataclass
         class DoubleMlpCfgParams:
             input_size: int = 384
             hidden_sizes: List[int] = field(default_factory=lambda: [64, 32, 1])
 
-        double_mlp_cfg: DoubleMlpCfgParams = DoubleMlpCfgParams()
+        double_mlp_cfg: DoubleMlpCfgParams = field(default_factory=DoubleMlpCfgParams)
 
         @dataclass
         class SimpleGcnCfgParams:
@@ -126,7 +126,7 @@ class ExperimentParams:
             reconstruction: bool = True
             hidden_sizes: List[int] = field(default_factory=lambda: [256, 128, 1])
 
-        simple_gcn_cfg: SimpleGcnCfgParams = SimpleGcnCfgParams()
+        simple_gcn_cfg: SimpleGcnCfgParams = field(default_factory=SimpleGcnCfgParams)
 
         @dataclass
         class LinearRnvpCfgParams:
@@ -137,27 +137,27 @@ class ExperimentParams:
             use_permutation: bool = True
             single_function: bool = False
 
-        linear_rnvp_cfg: LinearRnvpCfgParams = LinearRnvpCfgParams()
+        linear_rnvp_cfg: LinearRnvpCfgParams = field(default_factory=LinearRnvpCfgParams)
 
-    model: ModelParams = ModelParams()
+    model: ModelParams = field(default_factory=ModelParams)
 
     @dataclass
     class LrMonitorParams:
         logging_interval: str = "step"
 
-    lr_monitor: LrMonitorParams = LrMonitorParams()
+    lr_monitor: LrMonitorParams = field(default_factory=LrMonitorParams)
 
     @dataclass
     class CbEarlyStoppingParams:
         active: bool = False
 
-    cb_early_stopping: CbEarlyStoppingParams = CbEarlyStoppingParams()
+    cb_early_stopping: CbEarlyStoppingParams = field(default_factory=CbEarlyStoppingParams)
 
     @dataclass
     class CbCheckpointParams:
         active: bool = True
 
-    cb_checkpoint: CbCheckpointParams = CbCheckpointParams()
+    cb_checkpoint: CbCheckpointParams = field(default_factory=CbCheckpointParams)
 
     @dataclass
     class VisuParams:
@@ -175,6 +175,6 @@ class ExperimentParams:
             store: bool = True
             log: bool = True
 
-        learning_visu: LearningVisuParams = LearningVisuParams()
+        learning_visu: LearningVisuParams = field(default_factory=LearningVisuParams)
 
-    visu: VisuParams = VisuParams()
+    visu: VisuParams = field(default_factory=VisuParams)

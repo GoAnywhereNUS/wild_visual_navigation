@@ -40,7 +40,7 @@ class StegoInterface:
         else:
             self._cfg = cfg
 
-        self._model = Stego.load_from_checkpoint(self._cfg.model_path, n_image_clusters=self._cfg.n_image_clusters)
+        self._model = Stego.load_from_checkpoint(self._cfg.model_path, n_image_clusters=self._cfg.n_image_clusters, weights_only=False)
         self._model.eval().to(device)
         self._device = device
 
