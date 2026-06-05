@@ -26,7 +26,7 @@ INSTALL_REQUIRES = [
     "omegaconf",
     "optuna",
     "neptune",
-    "fast-slic",
+    # "fast-slic",
     "hydra-core",
     "prettytable",
     "termcolor",
