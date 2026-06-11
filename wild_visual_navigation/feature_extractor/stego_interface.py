@@ -46,6 +46,7 @@ class StegoInterface:
             self._cfg = cfg
 
         self._ort_session = self._load_onnx_session() if self._cfg.onnx else None
+        # Even with ONNX, we need to load the model to access some of the postprocess function
         self._model = self._load_model().eval().to(device)
 
         self._device = device
@@ -67,9 +68,6 @@ class StegoInterface:
         self._segments = None
 
     def _load_model(self):
-        if self._cfg.onnx:
-            return Stego(n_image_clusters=self._cfg.n_image_clusters)
-
         return Stego.load_from_checkpoint(
             self._cfg.model_path,
             n_image_clusters=self._cfg.n_image_clusters,
