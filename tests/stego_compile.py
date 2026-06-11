@@ -6,16 +6,18 @@
 from os.path import join
 import torch.nn.functional as F
 import torch
-import onnx
-import onnxruntime
 from torchvision import transforms as T
 from omegaconf import OmegaConf
+import omegaconf
+
+#torch.serialization.add_safe_globals([omegaconf.dictconfig.DictConfig])
 
 from pytictac import Timer
 from stego import STEGO_ROOT_DIR
 from stego.stego import Stego
 from stego.data import create_cityscapes_colormap
 
+import numpy as np
 
 class StegoInterface:
     def __init__(
@@ -26,8 +28,6 @@ class StegoInterface:
         n_image_clusters: int = 40,
         run_crf: bool = True,
         run_clustering: bool = False,
-        onnx: bool = False,
-        onnx_model_path: str = "",
         cfg: OmegaConf = OmegaConf.create({}),
     ):
         # Load config
@@ -38,22 +38,13 @@ class StegoInterface:
                     "input_size": input_size,
                     "run_crf": run_crf,
                     "run_clustering": run_clustering,
-                    "onnx": onnx,
-                    "onnx_model_path": onnx_model_path,
                     "n_image_clusters": n_image_clusters,
                 }
             )
         else:
             self._cfg = cfg
 
-        if self._cfg.onnx:
-            providers = [(
-                "CUDAExecutionProvider",
-                {"cudnn_conv_use_max_workspace": "0", "device_id": str(0)},
-            )]
-            self._ort_session = onnxruntime.InferenceSession(self._cfg.onnx_model_path, providers=providers)
-        
-        self._model = Stego.load_from_checkpoint(self._cfg.model_path, n_image_clusters=self._cfg.n_image_clusters, weights_only=False)
+        self._model = Stego.load_from_checkpoint(self._cfg.model_path, n_image_clusters=self._cfg.n_image_clusters)
         self._model.eval().to(device)
         self._device = device
 
@@ -97,16 +88,11 @@ class StegoInterface:
 
         # Resize image and normalize
         # with Timer("input normalization"):
-        resized_img = self._transform(img)
+        resized_img = self._transform(img).to(self._device)
 
         # Run STEGO
         # with Timer("compute code"):
-        if self._cfg.onnx:
-            onnx_outputs = self._ort_session.run(None, {"img": resized_img.numpy()})
-            self._code = torch.from_numpy(onnx_outputs[1]).to(self._device)
-        else:
-            resized_img = resized_img.to(self._device)
-            self._code = self._model.get_code(resized_img)
+        self._code = self._model.get_code(resized_img)
 
         # with Timer("compute postprocess"):
         self._cluster_pred, self._linear_pred = self._model.postprocess(
@@ -123,8 +109,8 @@ class StegoInterface:
         new_features_size = (H, H)
         # pad = int((W - H) / 2)
         self._code = F.interpolate(self._code, new_features_size, mode="bilinear", align_corners=True)
-        self._cluster_pred = F.interpolate(self._cluster_pred[:, None, :, :].float(), new_features_size, mode="nearest").int()
-        self._linear_pred = F.interpolate(self._linear_pred[:, None, :, :].float(), new_features_size, mode="nearest").int()
+        self._cluster_pred = F.interpolate(self._cluster_pred[None].float(), new_features_size, mode="nearest").int()
+        self._linear_pred = F.interpolate(self._linear_pred[None].float(), new_features_size, mode="nearest").int()
 
         return self._linear_pred, self._cluster_pred
 
@@ -202,5 +188,68 @@ def run_stego_interfacer():
 
 
 if __name__ == "__main__":
-    run_stego_interfacer()
+    import onnx
+    import onnxruntime
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    si = StegoInterface(
+        device=device,
+        input_size=448,
+        run_crf=False,
+        run_clustering=True,
+        n_image_clusters=20,
+    )
+    si._model = si._model.float()
+    example_inputs = torch.randn(1, 3, 224, 224).to(si._device)
+    onnx_model = torch.onnx.export(si._model, example_inputs, f="/data/misc/trav_onnx/model.onnx", opset_version=19, input_names=['img'])
+    #onnx_model.save("model.onnx")
+    print("Model saved!")
+
+    # Try loading the onnx model
+    from onnx import version_converter
+    OPT_VERSION = 19
+    IR_VERSION = 9
+    onnx_model = onnx.load("model.onnx")
+    onnx.checker.check_model(onnx_model)
+    onnx_model.ir_version = IR_VERSION
+    onnx_model = version_converter.convert_version(onnx_model, OPT_VERSION)
+    onnx.save(onnx_model, "model.onnx")
+
+
+    onnx_model = onnx.load("model.onnx")
+    providers = [(
+        "CUDAExecutionProvider",
+        {"cudnn_conv_use_max_workspace": "0", "device_id": str(0)},
+    )]
+
+    print("Inference")
+    ort_session = onnxruntime.InferenceSession("./model.onnx", providers=providers)
+    onnx_inputs = example_inputs.detach().cpu().numpy()
+
+    inputs = ort_session.get_inputs()
+    for inp in inputs:
+        print(f"Name: {inp.name}")
+        print(f"Shape: {inp.shape}")
+        print(f"Type: {inp.type}")
+
+    for _ in range(50):
+        with Timer("onnx"):
+            onnxruntime_outputs = ort_session.run(None, {"img": onnx_inputs})
+    for _ in range(50):
+        with Timer("torch"):
+            torch_outputs = si._model(example_inputs)
+
+    print(onnxruntime_outputs[0].shape)
+    print(onnxruntime_outputs[0])
+    print(torch_outputs[0].shape)
+    print(torch_outputs[0])
+
+    print(len(onnxruntime_outputs), len(torch_outputs))
+    assert len(onnxruntime_outputs) == len(torch_outputs)
+    for torch_output, onnxruntime_output in zip(torch_outputs, onnxruntime_outputs):
+        torch_output = torch_output.cpu()
+        print("Norm:", np.linalg.norm(torch_output.numpy() - onnxruntime_output) / onnxruntime_output.size)
+        torch.testing.assert_close(torch_output, torch.tensor(onnxruntime_output))
+
+
+    #run_stego_interfacer()

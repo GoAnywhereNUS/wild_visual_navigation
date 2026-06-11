@@ -50,6 +50,8 @@ class FeatureExtractor:
                 n_image_clusters=kwargs.get("n_image_clusters", 20),
                 run_clustering=kwargs.get("run_clustering", True),
                 run_crf=kwargs.get("run_crf", False),
+                onnx=kwargs.get("onnx", False),
+                onnx_model_path=kwargs.get("onnx_model_path", ""),
             )
 
         elif "dino" in self._feature_type:
