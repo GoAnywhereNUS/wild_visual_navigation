@@ -6,7 +6,6 @@
 from os.path import join
 import torch.nn.functional as F
 import torch
-import onnx
 import onnxruntime
 from torchvision import transforms as T
 from omegaconf import OmegaConf
@@ -46,17 +45,10 @@ class StegoInterface:
         else:
             self._cfg = cfg
 
-        if self._cfg.onnx:
-            providers = [(
-                "CUDAExecutionProvider",
-                {"cudnn_conv_use_max_workspace": "0", "device_id": str(0)},
-            )]
-            self._ort_session = onnxruntime.InferenceSession(self._cfg.onnx_model_path, providers=providers)
-        
-        self._model = Stego.load_from_checkpoint(self._cfg.model_path, n_image_clusters=self._cfg.n_image_clusters, weights_only=False)
-        self._model.eval().to(device)
-        self._device = device
+        self._ort_session = self._load_onnx_session() if self._cfg.onnx else None
+        self._model = self._load_model().eval().to(device)
 
+        self._device = device
         # Colormap
         self._cmap = create_cityscapes_colormap()
 
@@ -73,6 +65,25 @@ class StegoInterface:
         # Internal variables to access internal data
         self._features = None
         self._segments = None
+
+    def _load_model(self):
+        if self._cfg.onnx:
+            return Stego(n_image_clusters=self._cfg.n_image_clusters)
+
+        return Stego.load_from_checkpoint(
+            self._cfg.model_path,
+            n_image_clusters=self._cfg.n_image_clusters,
+            weights_only=False,
+        )
+
+    def _load_onnx_session(self):
+        providers = [
+            (
+                "CUDAExecutionProvider",
+                {"cudnn_conv_use_max_workspace": "0", "device_id": str(0)},
+            )
+        ]
+        return onnxruntime.InferenceSession(self._cfg.onnx_model_path, providers=providers)
 
     def change_device(self, device):
         """Changes the device of all the class members
@@ -203,4 +214,3 @@ def run_stego_interfacer():
 
 if __name__ == "__main__":
     run_stego_interfacer()
-

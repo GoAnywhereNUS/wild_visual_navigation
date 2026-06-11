@@ -191,6 +191,7 @@ if __name__ == "__main__":
     import onnx
     import onnxruntime
 
+    save_path = "/data/misc/trav_onnx/model.onnx"
     device = "cuda" if torch.cuda.is_available() else "cpu"
     si = StegoInterface(
         device=device,
@@ -201,7 +202,7 @@ if __name__ == "__main__":
     )
     si._model = si._model.float()
     example_inputs = torch.randn(1, 3, 224, 224).to(si._device)
-    onnx_model = torch.onnx.export(si._model, example_inputs, f="/data/misc/trav_onnx/model.onnx", opset_version=19, input_names=['img'])
+    onnx_model = torch.onnx.export(si._model, example_inputs, f=save_path, opset_version=19, input_names=['img'])
     #onnx_model.save("model.onnx")
     print("Model saved!")
 
@@ -209,21 +210,21 @@ if __name__ == "__main__":
     from onnx import version_converter
     OPT_VERSION = 19
     IR_VERSION = 9
-    onnx_model = onnx.load("model.onnx")
+    onnx_model = onnx.load(save_path)
     onnx.checker.check_model(onnx_model)
     onnx_model.ir_version = IR_VERSION
     onnx_model = version_converter.convert_version(onnx_model, OPT_VERSION)
-    onnx.save(onnx_model, "model.onnx")
+    onnx.save(onnx_model, save_path)
 
 
-    onnx_model = onnx.load("model.onnx")
+    onnx_model = onnx.load(save_path)
     providers = [(
         "CUDAExecutionProvider",
         {"cudnn_conv_use_max_workspace": "0", "device_id": str(0)},
     )]
 
     print("Inference")
-    ort_session = onnxruntime.InferenceSession("./model.onnx", providers=providers)
+    ort_session = onnxruntime.InferenceSession(save_path, providers=providers)
     onnx_inputs = example_inputs.detach().cpu().numpy()
 
     inputs = ort_session.get_inputs()

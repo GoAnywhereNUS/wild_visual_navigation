@@ -44,15 +44,20 @@ class FeatureExtractor:
         # Prepare extractor depending on the type
         if self._feature_type == "stego":
             self._feature_dim = 90
-            self._extractor = StegoInterface(
-                device=device,
-                input_size=input_size,
-                n_image_clusters=kwargs.get("n_image_clusters", 20),
-                run_clustering=kwargs.get("run_clustering", True),
-                run_crf=kwargs.get("run_crf", False),
-                onnx=kwargs.get("onnx", False),
-                onnx_model_path=kwargs.get("onnx_model_path", ""),
-            )
+            stego_kwargs = {
+                "device": device,
+                "input_size": input_size,
+                "n_image_clusters": kwargs.get("n_image_clusters", 20),
+                "run_clustering": kwargs.get("run_clustering", True),
+                "run_crf": kwargs.get("run_crf", False),
+                "onnx": kwargs.get("onnx", False),
+                "onnx_model_path": kwargs.get("onnx_model_path", ""),
+            }
+
+            if kwargs.get("model_path") is not None:
+                stego_kwargs["model_path"] = kwargs["model_path"]
+
+            self._extractor = StegoInterface(**stego_kwargs)
 
         elif "dino" in self._feature_type:
             self._feature_dim = 384
@@ -404,4 +409,3 @@ class FeatureExtractor:
                     return torch.stack(sparse_features, dim=1).T
         else:
             return dense_features
-
