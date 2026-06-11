@@ -250,8 +250,8 @@ class FeatureExtractor:
         # seg = torch.from_numpy(self._extractor.cluster_segments).to(self._device)
 
         # Change the segment indices by numbers from 0 to N
-        for i, k in enumerate(seg.unique()):
-            seg[seg == k.item()] = i
+        # for i, k in enumerate(seg.unique()):
+        #     seg[seg == k.item()] = i
 
         self._stego_features_already_computed_in_segmentation = True
         return seg
